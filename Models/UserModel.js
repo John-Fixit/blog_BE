@@ -31,13 +31,13 @@ const UserModel = sequelize.define("User", {
 
 
 { indexes: [{ unique: true, fields: ['email'] }], 
-hooks: {
-    beforeValidate: function(payload){
-        if(payload?.firstName){
-            payload.name = payload.name.toUpperCase()
-        }
-    }
-} 
+// hooks: {
+//     beforeValidate: (payload)=>{
+//         if(payload?.firstName){
+//             payload.name = payload.name.toLowerCase()
+//         }
+//     }
+// }
 })
 
 //synchronize the model with the database
