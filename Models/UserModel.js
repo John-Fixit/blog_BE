@@ -17,6 +17,7 @@ const UserModel = sequelize.define("User", {
     dob: {
         type: DataTypes.DATE,
         allowNull: true
+        
     },
     // role: {
     //     type: DataTypes.ENUM,

@@ -14,7 +14,8 @@ const jwt = require("jsonwebtoken");
         firstName: Joi.string().required(),
         lastName: Joi.string().required(),
         email: Joi.string().email().required(),
-        password: Joi.string().required()
+        dob: Joi.string().optional().allow(null, ''),
+        password: Joi.string().required(),
     })
 
 
@@ -66,6 +67,7 @@ const validateUser= async(req, res, next)=>{
     const { error } = await registerSchema.validate({ firstName, lastName, email, dob, password });
 
     if(error){
+        console.log(error)
         res.status(400).json({success: false, message: error?.details[0].message})
     }
 
@@ -119,14 +121,6 @@ const login_middleware= async(req, res, next)=>{
     }
 }
 
-
-
-
-
-function isValidEmail(email) {
-    // Example validation: Check if email follows a valid format
-    return /\S+@\S+\.\S+/.test(email);
-}
 
 
 module.exports = {validateUser, login_middleware, authenticateToken}
