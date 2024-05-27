@@ -1,9 +1,10 @@
-const { PostModel, LikeModel } = require("../Models/Post.model");
+const { PostModel, LikeModel, CommentModel } = require("../Models/Post.model");
 const { UserModel } = require("../Models/UserModel");
-const { Op } = require("sequelize");
+const { Op, where } = require("sequelize");
 
 const createPost = async (req, res) => {
-  const { userId, post_title, post_body, category, post_img_url } = req?.body;
+  const { post_title, post_body, category, post_img_url } = req?.body;
+  const { userId } = req?.user;
 
   try {
     const user = await UserModel.findByPk(userId);
@@ -38,7 +39,23 @@ const createPost = async (req, res) => {
 
 const getAllPost = async (req, res) => {
   try {
-    const data = await PostModel.findAll({ raw: true });
+    const data = await PostModel.findAll({include: [
+      {
+        model: UserModel,
+        attributes: ['firstName', 'lastName']
+      },
+      {
+        model: LikeModel,
+      },
+      {
+        model: CommentModel,
+        include: {
+          model: UserModel,
+          attributes: ['firstName', 'lastName']
+        },
+        attributes: { exclude: ['UserId', 'PostId']}
+      }
+    ]});
 
     res
       ?.status(200)
@@ -74,7 +91,7 @@ const getUserPost = async (req, res) => {
   }
 };
 
-//update post
+
 
 const likePost = async (req, res) => {
   const { post_id } = req?.body;
@@ -90,66 +107,180 @@ const likePost = async (req, res) => {
           [Op.and]: [{ PostId: post_id }, { UserId: userId }],
         },
       });
-      return res.status(200).send({message: 'like removed', status: true});
+      return res.status(200).send({ message: "like removed", status: true });
+    } else {
+      const post = await PostModel.findByPk(post_id);
+      if (!post) {
+        return res
+          .status(404)
+          .json({ status: false, message: "Post not found" });
+      }
+
+      const user = await UserModel.findByPk(userId);
+
+      if (!user) {
+        return res
+          .status(404)
+          .json({ status: false, message: "User not found" });
+      }
+
+      // const like = await LikeModel.create({userId: user?.id, postId: });
+      const like = await LikeModel.create({
+        UserId: user.id,
+        PostId: post.id,
+      });
+
+      // Optionally set the associations if needed
+      await like.setUser(user);
+      await like.setPost(post);
+
+      res.status(200).json({ status: true, message: "Post liked" });
     }
-
-    else{
-          const post = await PostModel.findByPk(post_id);
-          if (!post) {
-            return res.status(404).json({ status: false, message: "Post not found" });
-          }
-      
-          const user = await UserModel.findByPk(userId);
-      
-          if (!user) {
-            return res.status(404).json({ status: false, message: "User not found" });
-          }
-      
-          // const like = await LikeModel.create({userId: user?.id, postId: });
-          const like = await LikeModel.create({
-            UserId: user.id,
-            PostId: post.id,
-          });
-      
-          // Optionally set the associations if needed
-          await like.setUser(user);
-          await like.setPost(post);
-      
-          res.status(200).json({ status: true, message: "Post liked" });
-
-    }
-
-
   } catch (error) {
     res.status(500).json({ status: false, message: "Internal server error" });
   }
-};
-
-const commentToPost = async (req, res) => {
-  console.log(req?.body);
 };
 
 //get post likes
 const getPostLikes = async (req, res) => {
   const { post_id } = req?.params;
 
-  const likes = await LikeModel.findAll({
-    where: {
-      PostId: { [Op.eq]: post_id},
-    },
-    include: [{ model: UserModel, attributes: { exclude: ['password', 'dob', 'email', 'id']}}, 
-    // { model: PostModel}
-  ],
-    
-  });
+  try {
+    const likes = await LikeModel.findAll({
+      where: {
+        PostId: { [Op.eq]: post_id },
+      },
+      include: [
+        {
+          model: UserModel,
+          attributes: { exclude: ["password", "dob", "email", "id"] },
+        },
+        // { model: PostModel}
+      ],
+    });
 
-  res.status(200).json({ status: true, message: "Post likes fetched", data: likes });
+    res
+      .status(200)
+      .json({ status: true, message: "Post likes fetched", data: likes });
+  } catch (error) {
+    res.status(500).json({ status: false, message: "Internal server error" });
+  }
+};
+
+
+const commentToPost = async (req, res) => {
+  const { comment_text, postId } = req?.body;
+  const { userId } = req?.user;
+
+  try {
+    const user = await UserModel.findByPk(userId);
+    if (!user) {
+      return res
+        ?.status(404)
+        .json({ status: false, message: "user not found" });
+    }
+
+    const post = await PostModel.findByPk(postId);
+    if (!post) {
+      return res
+        ?.status(404)
+        .json({ status: false, message: "post not found" });
+    }
+
+    const comment = await CommentModel.create({
+      PostId: post?.id,
+      UserId: user?.id,
+      comment_text
+    });
+
+    // await comment.setUser(user);
+    // await comment.setPost(post);
+
+
+    res?.status(200).json({ status: true, message: "Comment successfull" });
+  } catch (error) {
+    res?.status(500).json({ message: "Internal server error", status: false });
+  }
 };
 
 //get post comments
 const getPostComments = async (req, res) => {
-  console.log(req?.params);
+  const { post_id } = req?.params;
+
+  try{
+    const comments = await CommentModel.findAll({where: { postId: post_id }, include: {
+      model: UserModel,
+      attributes: ['firstName', "lastName"]
+    }});
+
+    res.status(200).json({status: true, message: "Comments fetched", data: comments})
+  }
+  catch(error){
+    res?.status(500).json({message: "Internal server error", status: false})
+  }
 };
+
+
+const updatePost=async(req, res)=>{
+  const { post_title, post_body, category, post_img_url } = req?.body;
+  const { post_id } = req?.params;
+  const { userId } = req?.user;
+  try{
+
+    const post = await PostModel.findByPk(post_id);
+    if(!post){
+      return res.status(404).json({status: false, message: "post not found"})
+    }
+
+
+
+    if(post?.UserId !== userId){
+      return res.status(200).json({status: false, message: "You can not update this post, as it is not created by you!"})
+    }
+
+    await post.update({
+      post_title, post_body, post_img_url, category
+    })
+
+   await post.save()
+
+
+
+    res.status(200).json({status: true, message: "post updated"})
+
+
+  }catch(error){
+    res?.status(500).json({message: "Internal server error", status: false})
+  }
+}
+
+const deletePost= async(req, res)=>{
+  const { postId } = req?.body
+  const { userId } = req?.user
+
+  try{
+    
+    const deletePost = await PostModel.destroy({
+      where: {
+        [Op.and]: {
+          id: postId,
+          userId: userId
+        }
+      }
+    })
+
+    if(deletePost){
+      res.status(200).json({status: true, message: "Post deleted successfully"})
+    }
+    else{
+      res.status(403).json({status: false, message: "Can not delete this post"})
+    }
+
+  }
+  catch(error){
+    res?.status(500).json({message: "Internal server error", status: false})
+  }
+}
 
 module.exports = {
   createPost,
@@ -159,4 +290,6 @@ module.exports = {
   commentToPost,
   getPostLikes,
   getPostComments,
+  updatePost,
+  deletePost
 };

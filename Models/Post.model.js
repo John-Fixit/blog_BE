@@ -39,6 +39,13 @@ const LikeModel = sequelize.define("Like", {
 //   },
 });
 
+const CommentModel = sequelize.define("Comment", {
+  comment_text: {
+    type: DataTypes.TEXT
+  },
+
+})
+
 UserModel.hasMany(PostModel);
 PostModel.belongsTo(UserModel);
 
@@ -48,4 +55,10 @@ LikeModel.belongsTo(UserModel);
 PostModel.hasMany(LikeModel);
 LikeModel.belongsTo(PostModel);
 
-module.exports = { PostModel, LikeModel };
+UserModel.hasMany(CommentModel);
+CommentModel.belongsTo(UserModel);
+
+PostModel.hasMany(CommentModel);
+CommentModel.belongsTo(PostModel);
+
+module.exports = { PostModel, LikeModel, CommentModel };

@@ -4,7 +4,6 @@ const { LikeModel } = require("../Models/Post.model");
 const { Op } = require("sequelize");
 
 const postSchema = Joi.object({
-  userId: Joi.number().required(),
   post_img_url: Joi.string()
     .uri({ scheme: ["http", "https"] }) // Validate as a valid URI with HTTP/HTTPS scheme
     .regex(/\.(jpg|jpeg|png|gif)$/i) // Ensure URL ends with a valid image file extension
@@ -25,11 +24,15 @@ const likeSchema = Joi.object({
   post_id: Joi.number().required(),
 });
 
+const commentSchema = Joi.object({
+  postId: Joi.number().required(),
+  comment_text: Joi.string().required(),
+})
+
 const validatePostData = async (req, res, next) => {
   const { userId, post_img_url, post_title, post_body, category } = req?.body;
 
   const { error } = await postSchema.validate({
-    userId,
     post_img_url,
     post_title,
     post_body,
@@ -66,25 +69,27 @@ const validateLike = async (req, res, next) => {
       .status(400)
       .json({ success: false, message: error?.details[0].message });
   } else {
-    // const { userId } = req?.user;
-    // //==== remove like if liked =================
-    // const checkUser = await LikeModel.findOne({
-    //   where: { [Op.and]: [{ PostId: post_id }, { UserId: userId }] },
-    // });
-    // if (checkUser) {
-    //   const removeLike = await LikeModel.destroy({
-    //     where: {
-    //       [Op.and]: [{ PostId: post_id }, { UserId: userId }],
-    //     },
-    //   });
-    //   return res.status(200).send({message: 'like removed', status: true});
-    // }
-    //==== go to like ==============
     next();
   }
 };
 
+//validate comment payload
+
+const validateComment=async(req, res, next)=>{
+  const { comment_text, postId } = req?.body;
+
+  const { error } = await commentSchema.validate({postId, comment_text})
+
+  if(error){
+    res?.status(400).json({message: error?.details[0].message, status: false})
+  }
+  else{
+    next();
+  }
+}
+
 module.exports = {
   validatePostData,
   validateLike,
+  validateComment
 };
