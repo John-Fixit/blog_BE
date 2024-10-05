@@ -1,7 +1,11 @@
+const { crawlData } = require("../services/crawlFromDailyPostService");
 const { PostModel, LikeModel, CommentModel } = require("../Models/Post.model");
 const { UserModel } = require("../Models/UserModel");
 const { Op, where } = require("sequelize");
 
+
+
+//================== CREATE POST ====================
 const createPost = async (req, res) => {
   const { post_title, post_body, category, post_img_url } = req?.body;
   const { userId } = req?.user;
@@ -37,9 +41,85 @@ const createPost = async (req, res) => {
   }
 };
 
+
+//=============== CRAWL POST =====================
+const crawlPost=async(req, res)=>{
+
+    try{
+        const data = await crawlData()
+
+
+        const postSaved = PostModel.bulkCreate(data)
+
+        
+
+        if(postSaved){
+          res && res.status(200).json({message: "Crawled post saved successful"})
+        }
+        else{
+          res &&
+            res.status(403).json({message: "Created failed", status: false})
+          
+        }
+
+
+    }
+    catch(error){
+        console.log(error)
+        res.status(500).json({ message: "Internal server error", status: false });
+    }
+}
+
+// ================= GET SINGLE POST ==================
+const getSinglePost = async(req, res)=>{
+
+    const post_id = req?.params?.post_id;
+
+
+    try{
+        const post = await PostModel.findByPk(post_id, {
+          include: [
+            {
+              model: UserModel,
+              attributes: ['firstName', 'lastName']
+            },
+            {
+              model: LikeModel,
+            },
+            {
+              model: CommentModel,
+              include: {
+                model: UserModel,
+                attributes: ['firstName', 'lastName']
+              },
+              attributes: { exclude: ['UserId', 'PostId']}
+            }
+          ]
+        });
+
+
+
+        if(post){
+          res.status(200).json({status: true, message: "Post fetched", data: post})
+        }
+        else{
+          res.status(404).json({status: false, message: "Post not found"})
+        }
+    }
+    catch(error){
+      console.log(error)
+      res.status(500).json({ message: "Internal server error", status: false });
+    }
+}
+
+
+
+//================ GET ALL POST =====================
 const getAllPost = async (req, res) => {
   try {
-    const data = await PostModel.findAll({include: [
+    const data = await PostModel.findAll({
+      attributes: { exclude: ['post_body']},
+      include: [
       {
         model: UserModel,
         attributes: ['firstName', 'lastName']
@@ -47,15 +127,16 @@ const getAllPost = async (req, res) => {
       {
         model: LikeModel,
       },
-      {
-        model: CommentModel,
-        include: {
-          model: UserModel,
-          attributes: ['firstName', 'lastName']
-        },
-        attributes: { exclude: ['UserId', 'PostId']}
-      }
+      // {
+      //   model: CommentModel,
+      //   include: {
+      //     model: UserModel,
+      //     attributes: ['firstName', 'lastName']
+      //   },
+      //   attributes: { exclude: ['UserId', 'PostId']}
+      // }
     ]});
+
 
     res
       ?.status(200)
@@ -69,6 +150,9 @@ const getAllPost = async (req, res) => {
   }
 };
 
+
+
+//=================== GET USER POST ======================
 const getUserPost = async (req, res) => {
   const req_user = req?.user;
 
@@ -76,7 +160,7 @@ const getUserPost = async (req, res) => {
     const data = await UserModel.findByPk(req_user?.userId, {
       include: {
         model: PostModel,
-        attributes: { exclude: ["userId", "UserId"] },
+        attributes: { exclude: ["userId", "UserId", "post_body"] },
       },
       attributes: {
         exclude: ["password", "createdAt", "updatedAt", "dob", "email"],
@@ -92,7 +176,7 @@ const getUserPost = async (req, res) => {
 };
 
 
-
+//=========================== LIKE POST ========================
 const likePost = async (req, res) => {
   const { post_id } = req?.body;
   const { userId } = req?.user;
@@ -141,7 +225,7 @@ const likePost = async (req, res) => {
   }
 };
 
-//get post likes
+//============== GET POST LIKES ====================
 const getPostLikes = async (req, res) => {
   const { post_id } = req?.params;
 
@@ -167,7 +251,7 @@ const getPostLikes = async (req, res) => {
   }
 };
 
-
+//================ COMMENT TO POST =====================
 const commentToPost = async (req, res) => {
   const { comment_text, postId } = req?.body;
   const { userId } = req?.user;
@@ -203,7 +287,7 @@ const commentToPost = async (req, res) => {
   }
 };
 
-//get post comments
+//================= GET POST COMMENTS ==================
 const getPostComments = async (req, res) => {
   const { post_id } = req?.params;
 
@@ -220,7 +304,7 @@ const getPostComments = async (req, res) => {
   }
 };
 
-
+// ==================== UPDATE POST ====================
 const updatePost=async(req, res)=>{
   const { post_title, post_body, category, post_img_url } = req?.body;
   const { post_id } = req?.params;
@@ -254,6 +338,8 @@ const updatePost=async(req, res)=>{
   }
 }
 
+
+// ============== DELETE POST =================
 const deletePost= async(req, res)=>{
   const { postId } = req?.body
   const { userId } = req?.user
@@ -283,8 +369,10 @@ const deletePost= async(req, res)=>{
 }
 
 module.exports = {
+  crawlPost,
   createPost,
   getAllPost,
+  getSinglePost,
   getUserPost,
   likePost,
   commentToPost,

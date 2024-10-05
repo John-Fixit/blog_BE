@@ -1,11 +1,20 @@
-const {Sequelize} = require("sequelize");
-const config = require("../config.js")
+'use strict';
 
-const sequelize = new Sequelize(config.development);
+const {Sequelize} = require("sequelize");
+const config = require("../config.js");
+
+const { username, password, database, host, dialect } = config.development;
+
+const sequelize = new Sequelize(database, username, password, {
+    host: host,
+    dialect: dialect,
+    logging: false, // Disable logging
+  });
 
 //Testing the configuration
 async function testConnection(){
     try{
+        // await sequelize.authenticate();
         await sequelize.authenticate();
         console.log("Database connected succefully")
     }
@@ -15,5 +24,6 @@ async function testConnection(){
 }
 
 testConnection();
+
 
 module.exports = sequelize;

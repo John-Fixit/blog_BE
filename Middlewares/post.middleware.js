@@ -17,7 +17,7 @@ const postSchema = Joi.object({
     }),
   post_title: Joi.string().required(),
   post_body: Joi.string().required(),
-  category: Joi.string().required(),
+  category: Joi.string(),
 });
 
 const likeSchema = Joi.object({
