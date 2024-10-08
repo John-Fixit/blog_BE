@@ -1,9 +1,9 @@
+"use strict";
+
 const { crawlData } = require("../services/crawlFromDailyPostService");
 const { PostModel, LikeModel, CommentModel } = require("../Models/Post.model");
 const { UserModel } = require("../Models/UserModel");
 const { Op, where } = require("sequelize");
-
-
 
 //================== CREATE POST ====================
 const createPost = async (req, res) => {
@@ -35,122 +35,126 @@ const createPost = async (req, res) => {
       res?.status(403).json({ status: false, message: "User not found" });
     }
   } catch (err) {
-    console.log(err?.message);
-
     res.status(500).json({ message: "Internal server error", status: false });
   }
 };
 
-
 //=============== CRAWL POST =====================
-const crawlPost=async(req, res)=>{
+const crawlPost = async (req, res) => {
+  try {
+    const data = await crawlData();
 
-    try{
-        const data = await crawlData()
-
-
-        const postSaved = PostModel.bulkCreate(data)
-
-        
-
-        if(postSaved){
-          res && res.status(200).json({message: "Crawled post saved successful"})
-        }
-        else{
-          res &&
-            res.status(403).json({message: "Created failed", status: false})
-          
-        }
-
-
+    if (data?.length) {
+      const postSaved = await PostModel.bulkCreate(data, {
+        ignoreDuplicates: true,
+      });
+      if (postSaved) {
+        res &&
+          res.status(200).json({ message: "Crawled post saved successful" });
+      } else {
+        res &&
+          res.status(403).json({ message: "Created failed", status: false });
+      }
     }
-    catch(error){
-        console.log(error)
-        res.status(500).json({ message: "Internal server error", status: false });
-    }
-}
+  } catch (error) {
+    console.log(log);
+    res.status(500).json({ message: "Internal server error", status: false });
+  }
+};
 
 // ================= GET SINGLE POST ==================
-const getSinglePost = async(req, res)=>{
+const getSinglePost = async (req, res) => {
+  const post_id = req?.params?.post_id;
 
-    const post_id = req?.params?.post_id;
+  try {
+    const post = await PostModel.findByPk(post_id, {
+      include: [
+        {
+          model: UserModel,
+          attributes: ["firstName", "lastName"],
+        },
+        {
+          model: LikeModel,
+        },
+        {
+          model: CommentModel,
+          include: {
+            model: UserModel,
+            attributes: ["firstName", "lastName"],
+          },
+          attributes: { exclude: ["UserId", "PostId"] },
+        },
+      ],
+    });
 
+    if (post) {
+      const relatedPost = await PostModel.findAll({
+        where: { category: post?.category },
+        limit: 5,
+        order: [["createdAt", "DESC"]],
+        attributes: { exclude: ["post_body"] },
+      });
 
-    try{
-        const post = await PostModel.findByPk(post_id, {
-          include: [
-            {
-              model: UserModel,
-              attributes: ['firstName', 'lastName']
-            },
-            {
-              model: LikeModel,
-            },
-            {
-              model: CommentModel,
-              include: {
-                model: UserModel,
-                attributes: ['firstName', 'lastName']
-              },
-              attributes: { exclude: ['UserId', 'PostId']}
-            }
-          ]
-        });
-
-
-
-        if(post){
-          res.status(200).json({status: true, message: "Post fetched", data: post})
-        }
-        else{
-          res.status(404).json({status: false, message: "Post not found"})
-        }
+      res
+        .status(200)
+        .json({ status: true, message: "Post fetched", data: { post, related_post: relatedPost } });
+    } else {
+      res.status(404).json({ status: false, message: "Post not found" });
     }
-    catch(error){
-      console.log(error)
-      res.status(500).json({ message: "Internal server error", status: false });
-    }
-}
-
-
+  } catch (error) {
+    res.status(500).json({ message: "Internal server error", status: false });
+  }
+};
 
 //================ GET ALL POST =====================
 const getAllPost = async (req, res) => {
+  const page = parseInt(req?.query?.page) || 1;
+
+  const postPerPage = parseInt(req?.query?.limit) || 20;
+
+  const offset = (page - 1) * postPerPage;
+
   try {
     const data = await PostModel.findAll({
-      attributes: { exclude: ['post_body']},
+      offset: offset,
+      limit: postPerPage,
+      order: [["createdAt", "DESC"]],
+      attributes: { exclude: ["post_body"] },
       include: [
-      {
-        model: UserModel,
-        attributes: ['firstName', 'lastName']
-      },
-      {
-        model: LikeModel,
-      },
-      // {
-      //   model: CommentModel,
-      //   include: {
-      //     model: UserModel,
-      //     attributes: ['firstName', 'lastName']
-      //   },
-      //   attributes: { exclude: ['UserId', 'PostId']}
-      // }
-    ]});
+        {
+          model: UserModel,
+          attributes: ["firstName", "lastName"],
+        },
+        {
+          model: LikeModel,
+        },
+      ],
+    });
+
+    const totalPost = await PostModel.count();
 
 
-    res
-      ?.status(200)
-      ?.json({ status: true, message: "All posts fetched", data: data });
+    const totalPages = Math.ceil(totalPost / postPerPage);
+
+    const hasNextPage = page < totalPages;
+
+    res?.status(200)?.json({
+      status: true,
+      message: "All posts fetched",
+      data: {
+        posts: data,
+        hasNextPage: hasNextPage,
+        nextPage: hasNextPage ? page + 1 : null,
+        totalPostCount: totalPost,
+      },
+    });
   } catch (err) {
-    console.log(err?.message);
-
+    console.log(err);
     res
       ?.status(500)
       ?.json({ status: false, message: "Internal Server Error.." });
   }
 };
-
-
 
 //=================== GET USER POST ======================
 const getUserPost = async (req, res) => {
@@ -174,7 +178,6 @@ const getUserPost = async (req, res) => {
     res.status(500).json({ status: false, message: "Internal server error" });
   }
 };
-
 
 //=========================== LIKE POST ========================
 const likePost = async (req, res) => {
@@ -274,12 +277,11 @@ const commentToPost = async (req, res) => {
     const comment = await CommentModel.create({
       PostId: post?.id,
       UserId: user?.id,
-      comment_text
+      comment_text,
     });
 
     // await comment.setUser(user);
     // await comment.setPost(post);
-
 
     res?.status(200).json({ status: true, message: "Comment successfull" });
   } catch (error) {
@@ -291,82 +293,84 @@ const commentToPost = async (req, res) => {
 const getPostComments = async (req, res) => {
   const { post_id } = req?.params;
 
-  try{
-    const comments = await CommentModel.findAll({where: { postId: post_id }, include: {
-      model: UserModel,
-      attributes: ['firstName', "lastName"]
-    }});
+  try {
+    const comments = await CommentModel.findAll({
+      where: { postId: post_id },
+      include: {
+        model: UserModel,
+        attributes: ["firstName", "lastName"],
+      },
+    });
 
-    res.status(200).json({status: true, message: "Comments fetched", data: comments})
-  }
-  catch(error){
-    res?.status(500).json({message: "Internal server error", status: false})
+    res
+      .status(200)
+      .json({ status: true, message: "Comments fetched", data: comments });
+  } catch (error) {
+    res?.status(500).json({ message: "Internal server error", status: false });
   }
 };
 
 // ==================== UPDATE POST ====================
-const updatePost=async(req, res)=>{
+const updatePost = async (req, res) => {
   const { post_title, post_body, category, post_img_url } = req?.body;
   const { post_id } = req?.params;
   const { userId } = req?.user;
-  try{
-
+  try {
     const post = await PostModel.findByPk(post_id);
-    if(!post){
-      return res.status(404).json({status: false, message: "post not found"})
+    if (!post) {
+      return res.status(404).json({ status: false, message: "post not found" });
     }
 
-
-
-    if(post?.UserId !== userId){
-      return res.status(200).json({status: false, message: "You can not update this post, as it is not created by you!"})
+    if (post?.UserId !== userId) {
+      return res.status(200).json({
+        status: false,
+        message: "You can not update this post, as it is not created by you!",
+      });
     }
 
     await post.update({
-      post_title, post_body, post_img_url, category
-    })
+      post_title,
+      post_body,
+      post_img_url,
+      category,
+    });
 
-   await post.save()
+    await post.save();
 
-
-
-    res.status(200).json({status: true, message: "post updated"})
-
-
-  }catch(error){
-    res?.status(500).json({message: "Internal server error", status: false})
+    res.status(200).json({ status: true, message: "post updated" });
+  } catch (error) {
+    res?.status(500).json({ message: "Internal server error", status: false });
   }
-}
-
+};
 
 // ============== DELETE POST =================
-const deletePost= async(req, res)=>{
-  const { postId } = req?.body
-  const { userId } = req?.user
+const deletePost = async (req, res) => {
+  const { postId } = req?.body;
+  const { userId } = req?.user;
 
-  try{
-    
+  try {
     const deletePost = await PostModel.destroy({
       where: {
         [Op.and]: {
           id: postId,
-          userId: userId
-        }
-      }
-    })
+          userId: userId,
+        },
+      },
+    });
 
-    if(deletePost){
-      res.status(200).json({status: true, message: "Post deleted successfully"})
+    if (deletePost) {
+      res
+        .status(200)
+        .json({ status: true, message: "Post deleted successfully" });
+    } else {
+      res
+        .status(403)
+        .json({ status: false, message: "Can not delete this post" });
     }
-    else{
-      res.status(403).json({status: false, message: "Can not delete this post"})
-    }
-
+  } catch (error) {
+    res?.status(500).json({ message: "Internal server error", status: false });
   }
-  catch(error){
-    res?.status(500).json({message: "Internal server error", status: false})
-  }
-}
+};
 
 module.exports = {
   crawlPost,
@@ -379,5 +383,5 @@ module.exports = {
   getPostLikes,
   getPostComments,
   updatePost,
-  deletePost
+  deletePost,
 };

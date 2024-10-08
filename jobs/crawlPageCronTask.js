@@ -3,7 +3,7 @@ const { crawlPost } = require("../Controllers/post.controller");
 
 
 
-cron.schedule('0 6,8,18 * * *', async()=>{
+cron.schedule('6 16 * * *', async()=>{
         try{
                 await crawlPost()
         }

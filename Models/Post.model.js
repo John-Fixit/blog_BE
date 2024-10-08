@@ -7,12 +7,14 @@ const PostModel = sequelize.define(
   {
     post_img_url: {
       type: DataTypes.STRING,
+      unique: true,
+      allowNull: false
     },
     post_title: {
       type: DataTypes.STRING,
     },
     post_body: {
-      type: DataTypes.TEXT("lo"),
+      type: DataTypes.TEXT("long"),
     },
     category: {
       type: DataTypes.STRING,

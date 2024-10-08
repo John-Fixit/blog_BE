@@ -44,6 +44,7 @@ const crawlData = async () => {
           .find(".mvp-widget-feat1-bot-text.left.relative > h2")
           .text()
           ?.trim();
+        const post_category = $(element).find(".mvp-widget-feat1-bot-text.left.relative > .mvp-cat-date-wrap.left.relative > span.mvp-cd-cat.left.relative").text()?.trim()
 
         if (post_link) {
           const desc = await getBodyOfPost(post_link);
@@ -51,13 +52,17 @@ const crawlData = async () => {
             post_link,
             post_img_url,
             post_title,
+            category: post_category,
             ...desc,
           };
         }
       })
     );
 
-    return dailyCrawledPost?.filter(post=>post?.link && post?.post_img_url && post?.post_title, post?.post_body, post?.post_created_at);
+    console.log(dailyCrawledPost);
+
+    return dailyCrawledPost.filter(item=> item?.post_body && item?.post_created_at && item?.post_img_url && item?.post_link && item?.post_title)
+
   } catch (err) {
     console.log(err);
   }
