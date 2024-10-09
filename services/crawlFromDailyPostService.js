@@ -1,25 +1,34 @@
 const { default: axios } = require("axios");
 const cheerio = require("cheerio");
-const { BOOLEAN } = require("sequelize");
 
 // const url = "https://saharareporters.com/";
 
 const url = "https://dailypost.ng/";
 
-const getBodyOfPost = async (link) => {
+ const getBodyOfPost = async (link) => {
   if (!link) return "";
   try {
     const data = await (await fetch(link)).text();
 
     const $ = cheerio.load(data);
 
+
+    const post_img_url = $("#mvp-post-content > #mvp-post-feat-img > img").attr("src")
+
+    const post_category = $("header#mvp-post-head > h3.mvp-post-cat.left.relative > a.mvp-post-cat-link > span.mvp-post-cat.left").text()?.trim();
+
+    const post_title = $("header#mvp-post-head > h1.mvp-post-title.left.entry-title").text()?.trim();
+
+    const posted_by = $(".mvp-author-info-name.left.relative > span.author-name.vcard.fn.author > a").text()?.trim();
+
+
     const post_created_at = $(".mvp-author-info-date.left.relative > meta")
       .attr("content")
       ?.trim();
     const post_body = $("#mvp-content-body-top > #mvp-content-main").html();
-    return { post_created_at, post_body };
+    return { post_created_at, post_body, post_title, post_category, posted_by, post_img_url };
   } catch (err) {
-    console.log(err);
+    console.log(err?.message);
   }
 };
 
@@ -53,13 +62,14 @@ const crawlData = async () => {
             post_img_url,
             post_title,
             category: post_category,
-            ...desc,
+            post_created_at: desc?.post_created_at,
+            post_body: desc?.post_body,
+            posted_by: desc?.posted_by,
           };
         }
       })
     );
 
-    console.log(dailyCrawledPost);
 
     return dailyCrawledPost.filter(item=> item?.post_body && item?.post_created_at && item?.post_img_url && item?.post_link && item?.post_title)
 
@@ -68,61 +78,4 @@ const crawlData = async () => {
   }
 };
 
-module.exports = { crawlData }
-
-// const cheerio = require('cheerio');
-// const base_url = 'https://saharareporters.com';
-
-// const newDetail = async (link) => {
-//     if (!link) return "";
-//     try {
-//         const html = await (await fetch(link)).text();
-//         const $ = cheerio.load(html);
-//         const des = $('.column.is-6.group-middle p').text().trim();
-//         return des;
-//     } catch (error) {
-//         return ""
-//     }
-// }
-
-// const newList = async () => {
-//     try {
-
-//         const html = await (await fetch(base_url)).text();
-//         const $ = cheerio.load(html);
-//         const listElements = $('.columns.is-multiline.is-centered').find('.column.is-flex-column');
-
-//         const phones = await Promise.all(
-//             listElements.map(async i => {
-//                 const image = $(listElements[i]).find('figure.image > img').attr('src')?.trim();
-//                 const post_title = $(listElements[i]).find('.post_title.is-3 > a').text().trim();
-//                 const link = $(listElements[i]).find('div:nth-child(1) > div > a').attr("href")?.trim();
-//                 if (link) {
-//                     const description = await newDetail(`${base_url}${link}`);
-//                     return {
-//                         post_title,
-//                         image: `${base_url}/${image}`,
-//                         description
-//                     };
-//                 }
-//             })
-//         );
-
-//         return phones.filter(x => x !== undefined)
-//     } catch (error) {
-//         console.log(error);
-//         return [];
-//     }
-// }
-
-// const scrapeData = async () => {
-//     try {
-//         const news = await newList();
-//         console.log(news);
-//     } catch (error) {
-//         console.log(error);
-//     }
-
-// }
-
-// scrapeData()
+module.exports = { crawlData, getBodyOfPost }

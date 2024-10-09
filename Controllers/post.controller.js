@@ -40,20 +40,16 @@ const createPost = async (req, res) => {
 };
 
 //=============== CRAWL POST =====================
-const crawlPost = async (req, res) => {
+const crawlPost = async (data) => {
   try {
-    const data = await crawlData();
+    // const data = await crawlData();
 
     if (data?.length) {
       const postSaved = await PostModel.bulkCreate(data, {
         ignoreDuplicates: true,
       });
-      if (postSaved) {
-        res &&
-          res.status(200).json({ message: "Crawled post saved successful" });
-      } else {
-        res &&
-          res.status(403).json({ message: "Created failed", status: false });
+      if (!postSaved){
+        console.log("Saving post failed")
       }
     }
   } catch (error) {
@@ -90,14 +86,17 @@ const getSinglePost = async (req, res) => {
     if (post) {
       const relatedPost = await PostModel.findAll({
         where: { category: post?.category },
-        limit: 5,
+        limit: 7,
         order: [["createdAt", "DESC"]],
         attributes: { exclude: ["post_body"] },
       });
 
+
+      
+
       res
         .status(200)
-        .json({ status: true, message: "Post fetched", data: { post, related_post: relatedPost } });
+        .json({ status: true, message: "Post fetched", data: { post, related_post: relatedPost?.filter(post=>post?.post_img_url === post?.post_img_url ) } });
     } else {
       res.status(404).json({ status: false, message: "Post not found" });
     }
@@ -108,9 +107,11 @@ const getSinglePost = async (req, res) => {
 
 //================ GET ALL POST =====================
 const getAllPost = async (req, res) => {
+
   const page = parseInt(req?.query?.page) || 1;
 
-  const postPerPage = parseInt(req?.query?.limit) || 20;
+
+  const postPerPage = parseInt(req?.query?.limit) || 40;
 
   const offset = (page - 1) * postPerPage;
 
@@ -134,9 +135,14 @@ const getAllPost = async (req, res) => {
     const totalPost = await PostModel.count();
 
 
+
     const totalPages = Math.ceil(totalPost / postPerPage);
 
     const hasNextPage = page < totalPages;
+
+    const hasPrevPage = page > 1 && totalPages > 1;
+
+    const prevPage = hasPrevPage && page>1 ? page - 1 : null;
 
     res?.status(200)?.json({
       status: true,
@@ -145,6 +151,9 @@ const getAllPost = async (req, res) => {
         posts: data,
         hasNextPage: hasNextPage,
         nextPage: hasNextPage ? page + 1 : null,
+        hasPrevPage,
+        prevPage,
+        totalPages,
         totalPostCount: totalPost,
       },
     });

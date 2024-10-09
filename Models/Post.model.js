@@ -22,6 +22,9 @@ const PostModel = sequelize.define(
     post_created_at: {
       type: DataTypes.STRING,
     },
+    posted_by: {
+      type: DataTypes.STRING
+    }
   },
   // {
   //   sequelize,
