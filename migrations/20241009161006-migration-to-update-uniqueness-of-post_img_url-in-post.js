@@ -2,26 +2,28 @@
 
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
-  async up (queryInterface, Sequelize) {
-
-    await queryInterface.removeIndex('posts', `post_img_url`);
-    for(let i = 2; i <=62; i++){
-      try{
-        await queryInterface.removeIndex('posts', `post_img_url_${i}`);
-      }
-      catch(err){
-        console.log("err in removing index", err?.message)
-      }
+  async up(queryInterface, Sequelize) {
+    try {
+      // Add the new unique index for 'post_img_url' outside a transaction
+      await queryInterface.addIndex('posts', ['post_img_url'], {
+        unique: true,
+        name: 'unique_post_img_url',
+      });
+      console.log("Unique index for post_img_url added successfully.");
+    } catch (err) {
+      console.log("Error in adding unique index:", err?.message);
+      throw err;  // Ensure Sequelize knows this migration failed
     }
-
-    // Step 2: Add the new unique index
-    await queryInterface.addIndex('posts', ['post_img_url'], {
-      unique: true,
-      name: 'unique_post_img_url'
-    });
   },
 
-  async down (queryInterface, Sequelize) {
-    await queryInterface.removeIndex('Posts', 'unique_post_img_url');
-  }
+  async down(queryInterface, Sequelize) {
+    try {
+      // Remove the unique index during rollback
+      await queryInterface.removeIndex('posts', 'unique_post_img_url');
+      console.log("Unique index for post_img_url removed successfully.");
+    } catch (err) {
+      console.log("Error in removing unique index:", err?.message);
+      throw err;  // Ensure Sequelize knows this rollback failed
+    }
+  },
 };

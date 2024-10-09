@@ -48,8 +48,8 @@ const crawlPost = async (data) => {
       const postSaved = await PostModel.bulkCreate(data, {
         ignoreDuplicates: true,
       });
-      if (!postSaved){
-        console.log("Saving post failed")
+      if (!postSaved) {
+        console.log("Saving post failed");
       }
     }
   } catch (error) {
@@ -91,12 +91,18 @@ const getSinglePost = async (req, res) => {
         attributes: { exclude: ["post_body"] },
       });
 
-
-      
-
       res
         .status(200)
-        .json({ status: true, message: "Post fetched", data: { post, related_post: relatedPost?.filter(post=>post?.post_img_url === post?.post_img_url ) } });
+        .json({
+          status: true,
+          message: "Post fetched",
+          data: {
+            post,
+            related_post: relatedPost?.filter(
+              (item) => item?.post_img_url !== post?.post_img_url
+            ),
+          },
+        });
     } else {
       res.status(404).json({ status: false, message: "Post not found" });
     }
@@ -107,9 +113,7 @@ const getSinglePost = async (req, res) => {
 
 //================ GET ALL POST =====================
 const getAllPost = async (req, res) => {
-
   const page = parseInt(req?.query?.page) || 1;
-
 
   const postPerPage = parseInt(req?.query?.limit) || 40;
 
@@ -134,15 +138,13 @@ const getAllPost = async (req, res) => {
 
     const totalPost = await PostModel.count();
 
-
-
     const totalPages = Math.ceil(totalPost / postPerPage);
 
     const hasNextPage = page < totalPages;
 
     const hasPrevPage = page > 1 && totalPages > 1;
 
-    const prevPage = hasPrevPage && page>1 ? page - 1 : null;
+    const prevPage = hasPrevPage && page > 1 ? page - 1 : null;
 
     res?.status(200)?.json({
       status: true,

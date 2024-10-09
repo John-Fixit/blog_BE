@@ -74,7 +74,7 @@ const crawlData = async () => {
     return dailyCrawledPost.filter(item=> item?.post_body && item?.post_created_at && item?.post_img_url && item?.post_link && item?.post_title)
 
   } catch (err) {
-    console.log(err);
+    console.log(err)?.message;
   }
 };
 

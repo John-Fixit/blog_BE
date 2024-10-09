@@ -31,7 +31,7 @@ const crawlLatestPost = async () => {
     );
 
 
-    return latestPosts;
+    return latestPosts?.filter(item=> item?.post_body && item?.post_created_at && item?.post_img_url && item?.post_link && item?.post_title);
   } catch (error) {
     console.log(error);
   }
