@@ -115,7 +115,7 @@ const getSinglePost = async (req, res) => {
 const getAllPost = async (req, res) => {
   const page = parseInt(req?.query?.page) || 1;
 
-  const postPerPage = parseInt(req?.query?.limit) || 20;
+  const postPerPage = parseInt(req?.query?.limit) || 30;
 
   const offset = (page - 1) * postPerPage;
 
